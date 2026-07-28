@@ -41,14 +41,14 @@ def list_polls():
 
 @app.route("/api/polls/<int:poll_id>", methods=["GET"])
 def get_poll(poll_id):
-    poll = Poll.query.get(poll_id)
+    poll = db.session.get(Poll, poll_id)
     if not poll:
         return jsonify({"error": "poll not found"}), 404
     return jsonify(poll.to_dict())
 
 @app.route("/api/polls/<int:poll_id>/vote", methods=["POST"])
 def cast_vote(poll_id):
-    poll = Poll.query.get(poll_id)
+    poll = db.session.get(Poll, poll_id)
     if not poll:
         return jsonify({"error": "poll not found"}), 404
 

@@ -56,3 +56,4 @@ def test_three_or_more_options_is_valid():
         "options": ["Python", "JavaScript", "Go"]
     })
     assert valid is True
+
