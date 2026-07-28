@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from models import db, Poll, Option, Vote
 from flask import Flask, jsonify, request, render_template
 from models import db, Poll, Option
+from logic import validate_poll_creation
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///polls.db"
@@ -19,15 +20,12 @@ def index():
 def create_poll():
     data = request.get_json()
 
-    if not data or not data.get("question"):
-        return jsonify({"error": "question is required"}), 400
-
-    options = data.get("options", [])
-    if len(options) < 2:
-        return jsonify({"error": "at least 2 options are required"}), 400
+    valid, error = validate_poll_creation(data)
+    if not valid:
+        return jsonify({"error": error}), 400
 
     poll = Poll(question=data["question"])
-    for option_text in options:
+    for option_text in data["options"]:
         poll.options.append(Option(text=option_text))
 
     db.session.add(poll)
