@@ -1,3 +1,6 @@
+import threading
+from app import app as flask_app
+
 def test_create_poll_returns_201(client):
     response = client.post("/api/polls", json={
         "question": "Tabs or spaces?",
@@ -82,3 +85,40 @@ def test_vote_with_option_from_different_poll_returns_400(client):
 
     response = client.post(f"/api/polls/{poll2['id']}/vote", json={"option_id": wrong_option_id})
     assert response.status_code == 400
+
+
+def test_concurrent_votes_from_different_voters_all_count(client):
+    create_response = client.post("/api/polls", json={
+        "question": "Concurrency test",
+        "options": ["A", "B"]
+    })
+    poll_data = create_response.get_json()
+    poll_id = poll_data["id"]
+    option_id = poll_data["options"][0]["id"]
+
+    NUM_VOTERS = 20
+    results = []
+
+    def vote_as_new_voter():
+        # each thread gets its own test client = its own separate
+        # voter identity/cookie, simulating a genuinely different person
+        with flask_app.test_client() as voter_client:
+            response = voter_client.post(
+                f"/api/polls/{poll_id}/vote",
+                json={"option_id": option_id}
+            )
+            results.append(response.status_code)
+
+    threads = [threading.Thread(target=vote_as_new_voter) for _ in range(NUM_VOTERS)]
+
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    # every single vote should have succeeded
+    assert results.count(200) == NUM_VOTERS
+
+    final = client.get(f"/api/polls/{poll_id}").get_json()
+    final_count = final["options"][0]["vote_count"]
+    assert final_count == NUM_VOTERS
